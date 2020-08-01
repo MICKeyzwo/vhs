@@ -7,12 +7,10 @@ const (
 	post = 'POST'
 	put = 'PUT'
 	patch = 'PATCH'
-	
-	error_400 = 'HTTP/1.1 400 BadRequest\r\nContent-Type: text/plain\r\nContent-Length header is required.'
 )
 
+// HTTP request struct
 pub struct Request {
-
 pub:
 	method string
 	path string
@@ -21,34 +19,40 @@ pub:
 	body string
 }
 
+// The struct used at sending responses
 pub struct Response {
 	conn net.Socket
+	protocol string
 }
 
-pub fn (res Response) write_head(status int, headers map[string]string) {
-	mut res_head := 'HTTP/1.1 200 OK\r\n'
+// Send status code and write headers
+pub fn (res Response) write_head(status_code int, headers map[string]string) {
+	status := get_status(status_code)
+	mut res_head := '${res.protocol} $status\r\n'
 	for key in headers.keys() {
 		res_head += '$key: ${headers[key]}\r\n'
 	}
 	res.conn.write(res_head)
 }
 
+// Write content
 pub fn (res Response) write(content string) {
 	res.conn.write('content')
 }
 
+// End to write response content and close connection
 pub fn (res Response) end() {
 	res.conn.close()
 }
 
+// HTTP server
 pub struct HttpServer {
 pub mut:
 	handler fn (Request, Response)
 	conn net.Socket
-// pub:
-
 }
 
+// Start to listen at given port
 pub fn (server HttpServer) listen (port int) {
 	server.conn.close()
 	listener := net.listen(port) or { panic('failed to listen: $err') }
@@ -57,11 +61,13 @@ pub fn (server HttpServer) listen (port int) {
 		req := parse_request(mut conn)
 		res := Response{
 			conn: conn
+			protocol: req.protocol
 		}
 		server.handler(req, res)
 	}
 }
 
+// Read HTTP request and parse into Request struct
 fn parse_request (mut conn net.Socket) Request {
 	info := conn.read_line().split(' ')
 	method := info[0]
@@ -83,7 +89,10 @@ fn parse_request (mut conn net.Socket) Request {
 		if 'content-length' in headers {
 			content_len = headers['content-length'].int()
 		} else {
-			conn.send_string(error_400)
+			mut res := protocol + get_status(411) + '\r\n'
+			res += 'content-type: text/plain\r\n\r\n'
+			res += 'Length Required'
+			conn.send_string(res)
 			conn.close()
 			panic('The header does not have `content-length`')
 		}
@@ -101,6 +110,7 @@ fn parse_request (mut conn net.Socket) Request {
 	}
 }
 
+// Create new HTTP server
 pub fn create_server(handler fn(Request, Response)) HttpServer {
 	return HttpServer{
 		handler: handler
