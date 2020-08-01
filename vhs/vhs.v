@@ -9,45 +9,9 @@ const (
 	patch = 'PATCH'
 )
 
-// HTTP request struct
-pub struct Request {
-pub:
-	method string
-	path string
-	protocol string
-	headers map[string]string
-	body string
-}
-
-// The struct used at sending responses
-pub struct Response {
-	conn net.Socket
-	protocol string
-}
-
-// Send status code and write headers
-pub fn (res Response) write_head(status_code int, headers map[string]string) {
-	status := get_status(status_code)
-	mut res_head := '${res.protocol} $status\r\n'
-	for key in headers.keys() {
-		res_head += '$key: ${headers[key]}\r\n'
-	}
-	res.conn.write(res_head)
-}
-
-// Write content
-pub fn (res Response) write(content string) {
-	res.conn.write('content')
-}
-
-// End to write response content and close connection
-pub fn (res Response) end() {
-	res.conn.close()
-}
 
 // HTTP server
 pub struct HttpServer {
-pub mut:
 	handler fn (Request, Response)
 	conn net.Socket
 }

@@ -1,83 +1,75 @@
 module vhs
 
+import net
+import time
+
+
 const (
-	status_code_map = {
-		'100': '100 Continue'
-		'101': '101 Switching Protocols'
-		'102': '102 Processing'
-		'103': '103 Early Hints'
-
-		'200': '200 OK'
-		'201': '201 Created'
-		'202': '202 Accepted'
-		'203': '203 Non-Authoritative Information'
-		'204': '204 No Content'
-		'205': '205 Reset Content'
-		'206': '206 Partial Content'
-		'207': '207 Multi-Status'
-		'208': '208 Already Reported'
-		'226': '226 IM Used'
-
-		'300': '300 Multiple Choices'
-		'301': '301 Moved Permanently'
-		'302': '302 Found'
-		'303': '303 See Other'
-		'304': '304 Not Modified'
-		// '305': '305 Use Proxy'
-		// '306': '306 unused'
-		'307': '307 Temporary Redirect'
-		'308': '308 Permanent Redirect'
-
-		'400': '400 Bad Request'
-		'401': '401 Unauthorized'
-		'402': '402 Payment Required'
-		'403': '403 Forbidden'
-		'404': '404 Not Found'
-		'405': '405 Method Not Allowed'
-		'406': '406 Not Acceptable'
-		'407': '407 Proxy Authentication Required'
-		'408': '408 Request Timeout'
-		'409': '409 Conflict'
-		'410': '410 Gone'
-		'411': '411 Length Required'
-		'412': '412 Precondition Failed'
-		'413': '413 Payload Too Large'
-		'414': '414 URI Too Long'
-		'415': '415 Unsupported Media Type'
-		'416': '416 Range Not Satisfiable'
-		'417': '417 Expectation Failed'
-		'418': '418 I\'m a teapot'
-		'421': '421 Misdirected Request'
-		'422': '422 Unprocessable Entity'
-		'423': '423 Locked'
-		'424': '424 Failed Dependency'
-		'425': '425 Too Early'
-		'426': '426 Upgrade Required'
-		'428': '428 Precondition Required'
-		'429': '429 Too Many Requests'
-		'431': '431 Request Header Fields Too Large'
-		'451': '451 Unavailable For Legal Reasons'
-
-		'500': '500 Internal Server Error'
-		'501': '501 Not Implemented'
-		'502': '502 Bad Gateway'
-		'503': '503 Service Unavailable'
-		'504': '504 Gateway Timeout'
-		'505': '505 HTTP Version Not Supported'
-		'506': '506 Variant Also Negotiates'
-		'507': '507 Insufficient Storage'
-		'508': '508 Loop Detected'
-		// '509': '509 Bandwidth Limit Exceeded'
-		'510': '510 Not Extended'
-		'511': '511 Network Authentication Required'
-	}
+	weeks = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+	months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+				'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 )
 
-pub fn get_status(code int) string {
-	key := '$code'
-	if key in status_code_map {
-		return status_code_map[key]
-	} else {
-		panic('Illegal status code.')
+enum ResponseStatus {
+	nothing_written
+	body_writing
+	finished
+}
+
+
+// The struct used at sending responses
+pub struct Response {
+	conn net.Socket
+	protocol string
+mut:
+	status ResponseStatus = ResponseStatus.nothing_written
+}
+
+// Send status code and write headers
+pub fn (res Response) write_head(status_code int, headers map[string]string) {
+	status := get_status(status_code)
+	mut res_head := '${res.protocol} $status\r\n'
+	for key in headers.keys() {
+		res_head += '$key: ${headers[key]}\r\n'
 	}
+	res.conn.write(res_head)
+	// TODO: I'd like to update response status here
+	// res.status = ResponseStatus.body_writing
+}
+
+fn get_default_response_headers() map[string]string {
+	return {
+		'content-type': 'application/octet-stream',
+		'date': '${get_rfc2822_now()}'
+	}
+}
+
+fn get_rfc2822_now() string {
+	now := time.now()
+	week := weeks[now.day_of_week() - 1]
+	day_tmp := '0${now.day}'
+	day := day_tmp.substr(day_tmp.len - 2, day_tmp.len - 1)
+	month := months[now.month - 1]
+	year := now.year
+	time_ := now.hhmmss()
+	return '$week, $day $month $year $time_ GMT'
+}
+
+// Write content
+pub fn (res Response) write(content string) {
+	// if res.status == ResponseStatus.nothing_written {
+	// 	headers := get_default_response_headers()
+	// 	res.write_head(200, headers)
+	// }
+	res.conn.write('$content')
+}
+
+// End to write response content and close connection
+pub fn (res Response) end() {
+	// if res.status == ResponseStatus.nothing_written {
+	// 	headers := get_default_response_headers()
+	// 	res.write_head(200, headers)
+	// }
+	res.conn.close()
+	// res.status = ResponseStatus.finished
 }
