@@ -12,7 +12,7 @@ const (
 
 // HTTP server
 pub struct HttpServer {
-	handler fn (Request, Response)
+	handler fn (Request, mut Response)
 	conn net.Socket
 }
 
@@ -23,11 +23,12 @@ pub fn (server HttpServer) listen (port int) {
 	for {
 		mut conn := listener.accept() or { panic('failed to connect: $err') }
 		req := parse_request(mut conn)
-		res := Response{
+		mut res := Response{
 			conn: conn
 			protocol: req.protocol
 		}
-		server.handler(req, res)
+		handler := server.handler
+		handler(req, mut res)
 	}
 }
 
@@ -75,7 +76,7 @@ fn parse_request (mut conn net.Socket) Request {
 }
 
 // Create new HTTP server
-pub fn create_server(handler fn(Request, Response)) HttpServer {
+pub fn create_server(handler fn(Request, mut Response)) HttpServer {
 	return HttpServer{
 		handler: handler
 		conn: net.Socket{}
