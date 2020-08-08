@@ -3,12 +3,6 @@ module vhs
 import net
 
 
-const (
-	weeks = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
-	months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-				'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-)
-
 enum ResponseStatus {
 	nothing_written
 	body_writing

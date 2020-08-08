@@ -74,7 +74,9 @@ const (
 	}
 )
 
-pub fn get_status(code int) string {
+
+// Get HTTP response statu from status code number
+fn get_status(code int) string {
 	key := '$code'
 	if key in status_code_map {
 		return status_code_map[key]
