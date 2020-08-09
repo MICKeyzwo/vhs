@@ -4,6 +4,13 @@ import net
 import net.http
 
 
+const (
+	post = 'POST'
+	put = 'PUT'
+	patch = 'PATCH'
+)
+
+
 // HTTP request struct
 pub struct Request {
 pub:
@@ -15,7 +22,7 @@ pub:
 }
 
 // Read HTTP request and parse into Request struct
-fn parse_request (mut conn net.Socket) Request {
+fn parse_request (conn net.Socket) &Request {
 	info := conn.read_line().split(' ')
 	method := info[0]
 	path := info[1]
@@ -31,7 +38,7 @@ fn parse_request (mut conn net.Socket) Request {
 	}
 	headers := http.parse_headers(header_lines)
 	mut request_body := ''
-	if method == post || method == put || method == patch {
+	if method in [post, put, patch] {
 		mut content_len := 0
 		if 'content-length' in headers {
 			content_len = headers['content-length'].int()
@@ -48,7 +55,7 @@ fn parse_request (mut conn net.Socket) Request {
 		}
 		request_body = request_body.trim('\r\n')
 	}
-	return Request{
+	return &Request{
 		method: method
 		path: path
 		protocol: protocol
