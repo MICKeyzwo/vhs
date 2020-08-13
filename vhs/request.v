@@ -1,7 +1,6 @@
 module vhs
 
 import net
-import net.http
 
 
 const (
@@ -17,6 +16,7 @@ pub:
 	method string
 	path string
 	protocol string
+	raw_headers []string
 	headers map[string]string
 	body string
 }
@@ -36,21 +36,21 @@ fn parse_request (conn net.Socket) &Request {
 			break
 		}
 	}
-	headers := http.parse_headers(header_lines)
+	raw_headers := parse_raw_headers(header_lines)
+	headers := parse_capitalized_headers(header_lines)
 	mut request_body := ''
 	if method in [post, put, patch] {
 		mut content_len := 0
-		if 'content-length' in headers {
-			content_len = headers['content-length'].int()
+		if 'Content-Length' in headers {
+			content_len = headers['Content-Length'].int()
 		} else {
-			mut res := protocol + get_status(411) + '\r\n'
+			mut res := '$protocol ${get_status(411)}\r\n'
 			res += 'content-type: text/plain\r\n\r\n'
 			res += 'Length Required'
 			conn.send_string(res)
 			conn.close()
-			panic('The header does not have `content-length`')
 		}
-		for request_body.len <= content_len {
+		for request_body.len < content_len {
 			request_body += conn.read_line()
 		}
 		request_body = request_body.trim('\r\n')
@@ -59,6 +59,7 @@ fn parse_request (conn net.Socket) &Request {
 		method: method
 		path: path
 		protocol: protocol
+		raw_headers: raw_headers
 		headers: headers
 		body: request_body
 	}

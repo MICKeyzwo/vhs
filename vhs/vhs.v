@@ -5,12 +5,15 @@ import net
 
 // HTTP server
 pub struct HttpServer {
+	listener net.Socket
 	handler fn (Request, mut Response)
 }
 
 // Start to listen at given port
 pub fn (server HttpServer) listen (port int) {
-	listener := net.listen(port) or { panic('failed to listen: $err') }
+	listener := server.listener
+	listener.bind(port)
+	listener.listen() or { panic('failed to listen: $err') }
 	for {
 		conn := listener.accept() or { panic('failed to connect: $err') }
 		go server.handle_request(conn)
@@ -28,9 +31,16 @@ fn (server HttpServer) handle_request(conn net.Socket) {
 	handler(req, mut res)
 }
 
+// Close HTTP server listener
+pub fn (server HttpServer) close() {
+	server.listener.close() or { panic('failed to close: $err') }
+}
+
 // Create new HTTP server
 pub fn create_server(handler fn(Request, mut Response)) HttpServer {
+	listener := net.new_socket(2, 1, 0) or { panic('failed to create a socket: $err') }
 	return HttpServer{
-		handler: handler
+		listener: listener,
+		handler: handler,
 	}
 }
