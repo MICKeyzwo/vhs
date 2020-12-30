@@ -1,5 +1,6 @@
 module vhs
 
+import io
 import net
 
 
@@ -22,16 +23,18 @@ pub:
 }
 
 // Read HTTP request and parse into Request struct
-fn parse_request (conn net.Socket) &Request {
-	info := conn.read_line().split(' ')
+fn parse_request (conn net.TcpConn) ?&Request {
+	mut reader := io.new_buffered_reader(reader: io.make_reader(conn))
+	first_line := reader.read_line()?
+	info := first_line.split(' ')
 	method := info[0]
 	path := info[1]
 	protocol := info[2].trim('\r\n')
 	mut header_lines := []string{}
 	for {
-		line := conn.read_line().trim('\r\n')
+		line := reader.read_line()?
 		if line.len > 0 {
-			header_lines << line
+			header_lines << line.trim('\r\n')
 		} else {
 			break
 		}
@@ -47,13 +50,12 @@ fn parse_request (conn net.Socket) &Request {
 			mut res := '$protocol ${get_status(411)}\r\n'
 			res += 'content-type: text/plain\r\n\r\n'
 			res += 'Length Required'
-			conn.send_string(res)
-			conn.close()
+			conn.write_str(res)
+			conn.close()?
 		}
-		for request_body.len < content_len {
-			request_body += conn.read_line()
-		}
-		request_body = request_body.trim('\r\n')
+		mut buf := []byte{len: content_len, cap: content_len}
+		reader.read(mut buf)?
+		request_body = buf.bytestr().trim('\r\n')
 	}
 	return &Request{
 		method: method

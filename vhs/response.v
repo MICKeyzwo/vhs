@@ -12,7 +12,7 @@ enum ResponseStatus {
 
 // The struct used at sending responses
 pub struct Response {
-	conn net.Socket
+	conn net.TcpConn
 	protocol string
 mut:
 	status ResponseStatus = ResponseStatus.nothing_written
@@ -36,12 +36,12 @@ pub fn (mut res Response) write_head(status_code int, headers map[string]string)
 	for key, value in res_headers {
 		res_head += '$key: $value\r\n'
 	}
-	res.conn.write(res_head)
+	res.conn.write_str('$res_head\r\n')
 	res.status = ResponseStatus.body_writing
 }
 
 // Set header value before sending respons status code and headers
-pub fn (mut res Response) set_header(key, value string) {
+pub fn (mut res Response) set_header(key string, value string) {
 	res.inner_headers[key.to_lower()] = value
 }
 
@@ -59,15 +59,15 @@ pub fn (mut res Response) write(content string) {
 		headers := get_default_response_headers()
 		res.write_head(200, headers)
 	}
-	res.conn.write('$content')
+	res.conn.write_str(content)
 }
 
 // End to write response content and close connection
-pub fn (mut res Response) end() {
+pub fn (mut res Response) end() ? {
 	if res.status == ResponseStatus.nothing_written {
 		headers := get_default_response_headers()
 		res.write_head(200, headers)
 	}
-	res.conn.close()
+	res.conn.close()?
 	res.status = ResponseStatus.finished
 }

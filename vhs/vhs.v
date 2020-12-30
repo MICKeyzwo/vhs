@@ -5,15 +5,15 @@ import net
 
 // HTTP server
 pub struct HttpServer {
-	listener net.Socket
 	handler fn (Request, mut Response)
+mut:
+	listener net.TcpListener
 }
 
 // Start to listen at given port
-pub fn (server HttpServer) listen (port int) {
-	listener := server.listener
-	listener.bind(port)
-	listener.listen() or { panic('failed to listen: $err') }
+pub fn (mut server HttpServer) listen (port int) {
+	listener := net.listen_tcp(port) or { panic('failed to listen: $err') }
+	server.listener = listener
 	for {
 		conn := listener.accept() or { panic('failed to connect: $err') }
 		go server.handle_request(conn)
@@ -21,11 +21,11 @@ pub fn (server HttpServer) listen (port int) {
 }
 
 // Call server handler function. This function is called with `go`
-fn (server HttpServer) handle_request(conn net.Socket) {
-	req := parse_request(conn)
+fn (server &HttpServer) handle_request(conn net.TcpConn) {
+	req := parse_request(conn) or { panic('failed to parse request') }
 	mut res := &Response{
-		conn: conn
-		protocol: req.protocol
+		conn: conn,
+		protocol: req.protocol,
 	}
 	handler := server.handler
 	handler(req, mut res)
@@ -38,9 +38,7 @@ pub fn (server HttpServer) close() {
 
 // Create new HTTP server
 pub fn create_server(handler fn(Request, mut Response)) HttpServer {
-	listener := net.new_socket(2, 1, 0) or { panic('failed to create a socket: $err') }
 	return HttpServer{
-		listener: listener,
 		handler: handler,
 	}
 }
