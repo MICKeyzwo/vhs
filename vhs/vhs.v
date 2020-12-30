@@ -3,9 +3,14 @@ module vhs
 import net
 
 
+// HTTP server's request handler interface
+pub interface VhsHandler {
+	handle(Request, mut Response)
+}
+
 // HTTP server
 pub struct HttpServer {
-	handler fn (Request, mut Response)
+	handler VhsHandler
 mut:
 	listener net.TcpListener
 }
@@ -27,8 +32,7 @@ fn (server &HttpServer) handle_request(conn net.TcpConn) {
 		conn: conn,
 		protocol: req.protocol,
 	}
-	handler := server.handler
-	handler(req, mut res)
+	server.handler.handle(req, mut res)
 }
 
 // Close HTTP server listener
@@ -37,7 +41,7 @@ pub fn (server HttpServer) close() {
 }
 
 // Create new HTTP server
-pub fn create_server(handler fn(Request, mut Response)) HttpServer {
+pub fn create_server(handler VhsHandler) HttpServer {
 	return HttpServer{
 		handler: handler,
 	}
