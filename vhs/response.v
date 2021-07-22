@@ -12,23 +12,26 @@ enum ResponseStatus {
 
 // The struct used at sending responses
 pub struct Response {
-	conn net.TcpConn
 	protocol string
 mut:
+	conn net.TcpConn
 	status ResponseStatus = ResponseStatus.nothing_written
-	inner_headers map[string]string
+	inner_headers map[string]string = {
+		'content-type': 'application/octet-stream',
+		'date': get_rfc2822_now()
+	}
 }
 
 // Send status code and write headers
-pub fn (mut res Response) write_head(status_code int, headers map[string]string) {
+pub fn (mut res Response) write_head(status_code int, headers map[string]string) ? {
 	mut res_headers := map[string]string
-	for key, value in headers {
-		res_headers[key.to_lower()] = value
-	}
 	if res.inner_headers.keys().len > 0 {
 		for key, value in res.inner_headers {
 			res_headers[key] = value
 		}
+	}
+	for key, value in headers {
+		res_headers[key.to_lower()] = value
 	}
 
 	status := get_status(status_code)
@@ -36,7 +39,7 @@ pub fn (mut res Response) write_head(status_code int, headers map[string]string)
 	for key, value in res_headers {
 		res_head += '$key: $value\r\n'
 	}
-	res.conn.write_str('$res_head\r\n')
+	res.conn.write_string('$res_head\r\n')?
 	res.status = ResponseStatus.body_writing
 }
 
@@ -54,19 +57,17 @@ fn get_default_response_headers() map[string]string {
 }
 
 // Write content
-pub fn (mut res Response) write(content string) {
+pub fn (mut res Response) write(content string) ? {
 	if res.status == ResponseStatus.nothing_written {
-		headers := get_default_response_headers()
-		res.write_head(200, headers)
+		res.write_head(200, map[string]string{})?
 	}
-	res.conn.write_str(content)
+	res.conn.write_string(content)?
 }
 
 // End to write response content and close connection
 pub fn (mut res Response) end() ? {
 	if res.status == ResponseStatus.nothing_written {
-		headers := get_default_response_headers()
-		res.write_head(200, headers)
+		res.write_head(200, map[string]string{})?
 	}
 	res.conn.close()?
 	res.status = ResponseStatus.finished

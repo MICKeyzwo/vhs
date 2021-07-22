@@ -23,8 +23,8 @@ pub:
 }
 
 // Read HTTP request and parse into Request struct
-fn parse_request (conn net.TcpConn) ?&Request {
-	mut reader := io.new_buffered_reader(reader: io.make_reader(conn))
+fn parse_request (mut conn net.TcpConn) ?&Request {
+	mut reader := io.new_buffered_reader(reader: conn)
 	first_line := reader.read_line()?
 	info := first_line.split(' ')
 	method := info[0]
@@ -50,7 +50,7 @@ fn parse_request (conn net.TcpConn) ?&Request {
 			mut res := '$protocol ${get_status(411)}\r\n'
 			res += 'content-type: text/plain\r\n\r\n'
 			res += 'Length Required'
-			conn.write_str(res)
+			conn.write_string(res)?
 			conn.close()?
 		}
 		mut buf := []byte{len: content_len, cap: content_len}
